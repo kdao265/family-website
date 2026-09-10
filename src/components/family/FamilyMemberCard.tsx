@@ -18,6 +18,22 @@ interface FamilyMemberCardProps {
   onClick?: () => void;
 }
 
+function formatBirthDate(value: string) {
+  if (!value || value === 'Chưa cập nhật') {
+    return value;
+  }
+
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!match) {
+    return value;
+  }
+
+  const [, year, month, day] = match;
+
+  return `${day}/${month}/${year}`;
+}
+
 export default function FamilyMemberCard({
   member,
   isSelected = false,
@@ -57,7 +73,7 @@ export default function FamilyMemberCard({
         )}
 
         <p className="font-body-md text-sm text-on-surface-variant">
-          Sinh ngày {member.birthDate}
+          {formatBirthDate(member.birthDate)}
         </p>
       </div>
     </button>
