@@ -1,10 +1,4 @@
-import {
-  ArrowRight,
-  Heart,
-  Users,
-  CalendarDays,
-  Images,
-} from 'lucide-react';
+import { ArrowRight, CalendarDays, Heart, Images, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -27,506 +21,92 @@ interface Moment {
   created_at: string;
 }
 
+function formatDate(date: string | null) {
+  if (!date) return 'Chưa cập nhật ngày sinh';
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(date + 'T00:00:00'));
+}
+
+function LoadingCard() {
+  return <div className="animate-pulse rounded-2xl bg-surface-container-low p-5"><div className="mb-4 h-44 rounded-xl bg-surface-container" /><div className="mb-3 h-5 w-2/3 rounded bg-surface-container" /><div className="h-4 w-1/2 rounded bg-surface-container" /></div>;
+}
+
 export default function Home() {
   const [members, setMembers] = useState<FamilyMember[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(true);
   const [moments, setMoments] = useState<Moment[]>([]);
-  const [loadingMoments, setLoadingMoments] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
 
   useEffect(() => {
-    async function loadMembers() {
-      setLoadingMembers(true);
-
-      const { data, error } = await supabase
-        .from('family_members')
-        .select(
-          'id, full_name, birth_date, hobbies, avatar_url'
-        )
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error(
-          'Load homepage members error:',
-          error
-        );
-
-        setMembers([]);
-      } else {
-        setMembers(data ?? []);
-      }
-
-      setLoadingMembers(false);
+    async function loadHome() {
+      setLoading(true);
+      const [membersResult, momentsResult] = await Promise.all([
+        supabase.from('family_members').select('id, full_name, birth_date, hobbies, avatar_url').order('created_at', { ascending: true }),
+        supabase.from('moments').select('id, title, description, image_url, category, is_favorite, created_at').order('created_at', { ascending: false }),
+      ]);
+      setMembers(membersResult.data ?? []);
+      setMoments(momentsResult.data ?? []);
+      setLoadError(Boolean(membersResult.error || momentsResult.error));
+      setLoading(false);
     }
-
-    loadMembers();
+    loadHome();
   }, []);
 
-  useEffect(() => {
-    async function loadMoments() {
-      setLoadingMoments(true);
-  
-      const { data, error } = await supabase
-        .from('moments')
-        .select(
-          'id, title, description, image_url, category, is_favorite, created_at'
-        )
-        .order('created_at', {
-          ascending: false,
-        });
-  
-      if (error) {
-        console.error(
-          'Load homepage moments error:',
-          error
-        );
-  
-        setMoments([]);
-      } else {
-        setMoments(data ?? []);
-      }
-  
-      setLoadingMoments(false);
-    }
-  
-    loadMoments();
-  }, []);
-
-  const heroMoment = moments.find(
-    (moment) => moment.image_url
-  ) ?? null;
-  
-  const storyMoment =
-    moments.find((moment) => moment.image_url && moment.is_favorite) ??
-    heroMoment;
+  const heroMoment = moments.find((moment) => moment.image_url) ?? null;
+  const featuredMoments = moments.filter((moment) => moment.image_url).slice(0, 3);
 
   return (
-    <div className="pt-[72px]">
-      {/* =========================================================
-          HERO
-      ========================================================= */}
-      <section className="relative min-h-[calc(100vh-72px)] flex items-center overflow-hidden">
-        {/* Background image */}
-        <div className="absolute inset-0">
-          {heroMoment?.image_url ? (
-            <img
-              src={heroMoment.image_url}
-              alt={heroMoment.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-surface-container-low" />
-          )}
-
-          {/* Warm overlays */}
-          <div className="absolute inset-0 bg-on-surface/35"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-on-surface/65 via-on-surface/35 to-transparent"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-on-surface/45 via-transparent to-transparent"></div>
-        </div>
-
-        {/* Hero content */}
-        <div className="relative z-10 w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-24">
-          <div className="max-w-3xl text-on-primary">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-on-primary/15 backdrop-blur-sm border border-on-primary/20 font-label-md text-sm mb-6">
-              <Heart className="w-4 h-4 fill-current" />
-              Mái nhà của chúng ta
-            </span>
-
-            <h1 className="font-display-lg text-display-lg md:text-[64px] leading-[1.05] mb-6 drop-shadow-lg">
-              Một gia đình.
-              <br />
-              Nhiều thế hệ.
-              <br />
-              Một mái nhà.
-            </h1>
-
-            <p className="font-body-lg text-lg md:text-xl text-on-primary/90 max-w-2xl leading-relaxed mb-10">
-              Nơi lưu giữ những người chúng ta yêu thương, những câu chuyện đã
-              đi qua và những khoảnh khắc muốn nhớ mãi.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                to="/family-tree"
-                className="inline-flex items-center justify-center gap-2 bg-primary text-on-primary px-7 py-3.5 rounded-full font-label-md shadow-lg hover:bg-primary-container hover:-translate-y-0.5 transition-all duration-200"
-              >
-                Khám phá gia phả
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-
-              <Link
-                to="/moments"
-                className="inline-flex items-center justify-center gap-2 bg-on-primary/10 backdrop-blur-sm border border-on-primary/60 text-on-primary px-7 py-3.5 rounded-full font-label-md hover:bg-on-primary/20 transition-all duration-200"
-              >
-                Xem những khoảnh khắc
-              </Link>
+    <main className="pt-[72px]">
+      <section className="relative isolate overflow-hidden bg-secondary px-margin-mobile py-20 text-on-primary md:px-margin-desktop md:py-28">
+        {heroMoment?.image_url && <img src={heroMoment.image_url} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover opacity-25" />}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/95 via-secondary/90 to-primary/80" />
+        <div className="mx-auto grid max-w-container-max gap-10 lg:grid-cols-[1.25fr_.75fr] lg:items-center">
+          <div>
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-on-primary/30 bg-on-primary/10 px-4 py-2 font-label-md text-sm"><Heart className="h-4 w-4 fill-current" /> Mừng sinh nhật bà Đào Thị Dỏn</p>
+            <h1 className="max-w-3xl font-display-lg text-display-lg leading-tight">Một gia đình. Nhiều thế hệ. Một mái nhà.</h1>
+            <p className="mt-6 max-w-2xl font-body-lg text-body-lg leading-relaxed text-on-primary/85">Nơi con cháu cùng lưu giữ những người thân yêu, những điều bình dị và những kỷ niệm muốn kể lại cho mai sau.</p>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <Link to="/guestbook" className="inline-flex items-center gap-2 rounded-full bg-on-primary px-6 py-3 font-label-md text-primary transition-transform hover:-translate-y-0.5">Xem lời chúc dành cho bà <ArrowRight className="h-4 w-4" /></Link>
+              <Link to="/family-tree" className="inline-flex items-center gap-2 rounded-full border border-on-primary/50 px-6 py-3 font-label-md text-on-primary hover:bg-on-primary/10">Khám phá gia phả</Link>
             </div>
           </div>
+          <aside className="rounded-3xl border border-on-primary/25 bg-on-primary/10 p-7 backdrop-blur-sm">
+            <p className="font-label-md text-sm tracking-wide text-on-primary/75">22 THÁNG 09</p>
+            <h2 className="mt-2 font-headline-md text-headline-md">Một lời tri ân gửi tới bà</h2>
+            <p className="mt-4 font-body-md leading-relaxed text-on-primary/85">Cảm ơn bà vì tình yêu, sự tần tảo và những điều bà đã vun đắp để chúng con có một mái nhà để trở về.</p>
+            <Link to="/guestbook" className="mt-6 inline-flex items-center gap-2 font-label-md underline underline-offset-4">Gửi một lời chúc <ArrowRight className="h-4 w-4" /></Link>
+          </aside>
         </div>
       </section>
 
-      {/* =========================================================
-          INTRO
-      ========================================================= */}
-      <section className="py-section-gap px-margin-mobile md:px-margin-desktop bg-surface">
-        <div className="max-w-3xl mx-auto text-center">
-          <span className="font-label-md text-primary uppercase tracking-[0.15em]">
-            Đại gia đình
-          </span>
-
-          <h2 className="font-headline-lg text-headline-lg text-secondary mt-3 mb-5">
-            Mỗi người là một mảnh ghép của mái nhà này
-          </h2>
-
-          <div className="w-16 h-1 bg-primary/30 mx-auto rounded-full mb-6"></div>
-
-          <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-            Có những người đã cùng ta đi qua cả một đời, có những người mới
-            bước vào hành trình này. Dù ở đâu hay thuộc thế hệ nào, mỗi thành
-            viên đều góp một phần câu chuyện để làm nên gia đình chúng ta hôm nay.
-          </p>
+      <section className="mx-auto max-w-container-max px-margin-mobile py-section-gap md:px-margin-desktop">
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+          <div><p className="font-label-md text-sm text-primary">NHỮNG NGƯỜI THÂN YÊU</p><h2 className="mt-2 font-headline-lg text-headline-lg text-secondary">Mỗi người là một mảnh ghép</h2></div>
+          <Link to="/family-tree" className="inline-flex items-center gap-2 font-label-md text-primary hover:underline">Xem gia phả <ArrowRight className="h-4 w-4" /></Link>
         </div>
+        {loadError && <div role="status" className="mb-6 rounded-2xl border border-primary/20 bg-primary/10 px-5 py-4 font-body-md text-on-surface">Một phần dữ liệu chưa tải được. Bạn có thể thử tải lại trang sau ít phút.</div>}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {loading ? Array.from({ length: 3 }, (_, index) => <LoadingCard key={index} />) : members.map((member) => (
+            <article key={member.id} className="overflow-hidden rounded-2xl border border-outline/10 bg-surface-container-lowest family-card-shadow">
+              {member.avatar_url ? <img src={member.avatar_url} alt={member.full_name} className="h-52 w-full object-cover" /> : <div className="flex h-52 items-center justify-center bg-surface-container-low text-primary"><Users className="h-12 w-12" /></div>}
+              <div className="p-5"><h3 className="font-headline-md text-xl text-on-surface">{member.full_name}</h3><p className="mt-2 flex items-center gap-2 font-body-md text-sm text-on-surface-variant"><CalendarDays className="h-4 w-4 text-primary" />Sinh ngày {formatDate(member.birth_date)}</p><p className="mt-2 font-body-md text-sm text-on-surface-variant">{member.hobbies?.join(' · ') || 'Những niềm vui giản dị bên gia đình'}</p><button type="button" onClick={() => setSelectedMember(member)} className="mt-5 font-label-md text-primary hover:underline">Xem vài dòng kỷ niệm</button></div>
+            </article>
+          ))}
+        </div>
+        {!loading && members.length === 0 && <p className="rounded-2xl bg-surface-container-low p-6 font-body-md text-on-surface-variant">Thông tin thành viên sẽ được cập nhật trong thời gian tới.</p>}
       </section>
 
-      {/* =========================================================
-          FAMILY MEMBERS
-      ========================================================= */}
-      <section className="py-section-gap px-margin-mobile md:px-margin-desktop bg-surface-container-low">
-        <div className="max-w-container-max mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
-            <div>
-              <span className="font-label-md text-primary uppercase tracking-[0.15em]">
-                Những người thân yêu
-              </span>
-
-              <h2 className="font-headline-lg text-headline-lg text-secondary mt-3">
-                Thành viên gia đình
-              </h2>
-
-              <div className="w-16 h-1 bg-primary/30 rounded-full mt-4"></div>
-            </div>
-
-            <p className="font-body-md text-on-surface-variant max-w-md">
-              Những gương mặt thân quen tạo nên sự ấm áp của mái nhà này.
-            </p>
-          </div>
-
-          {loadingMembers ? (
-            <div className="text-center py-16">
-              <p className="font-body-md text-on-surface-variant">
-                Đang tải thành viên...
-              </p>
-            </div>
-          ) : members.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="font-body-md text-on-surface-variant">
-                Chưa có thành viên nào được giới thiệu.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {members.slice(0, 6).map((member) => (
-                <article
-                  key={member.id}
-                  className="group bg-surface-container-lowest rounded-3xl overflow-hidden border border-outline/10 family-card-shadow hover-lift"
-                >
-                  <div className="relative h-72 overflow-hidden">
-                    {member.avatar_url ? (
-                      <img
-                        src={member.avatar_url}
-                        alt={member.full_name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-surface-container-low flex items-center justify-center">
-                        <span className="font-headline-lg text-5xl text-primary/30">
-                          {member.full_name.charAt(0)}
-                        </span>
-                      </div>
-                    )}
-          
-                    <div className="absolute inset-0 bg-gradient-to-t from-on-surface/70 via-transparent to-transparent"></div>
-          
-                    <div className="absolute left-5 right-5 bottom-5">
-                      <h3 className="font-headline-md text-xl text-on-primary">
-                        {member.full_name}
-                      </h3>
-                    </div>
-                  </div>
-          
-                  <div className="p-6">
-                    <p className="font-body-md text-on-surface-variant mb-4">
-                      {member.birth_date
-                        ? `Sinh ngày ${member.birth_date}`
-                        : 'Ngày sinh chưa cập nhật'}
-                    </p>
-          
-                    <div className="flex flex-wrap gap-2">
-                      {(member.hobbies ?? []).map((hobby) => (
-                        <span
-                          key={hobby}
-                          className="px-3 py-1.5 rounded-full bg-surface-variant text-on-surface-variant text-xs font-medium"
-                        >
-                          {hobby}
-                        </span>
-                      ))}
-                    </div>
-          
-                    <div className="mt-6 pt-5 border-t border-outline/10">
-                      <Link
-                        to="/story"
-                        className="inline-flex items-center gap-2 text-primary font-label-md group-hover:gap-3 transition-all"
-                      >
-                        Xem câu chuyện
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
+      <section className="border-y border-outline/10 bg-surface-container-low px-margin-mobile py-section-gap md:px-margin-desktop">
+        <div className="mx-auto max-w-container-max"><div className="mb-10 flex items-end justify-between gap-4"><div><p className="font-label-md text-sm text-primary">KÝ ỨC</p><h2 className="mt-2 font-headline-lg text-headline-lg text-secondary">Khoảnh khắc đáng nhớ</h2></div><Link to="/moments" className="inline-flex items-center gap-2 font-label-md text-primary hover:underline">Xem tất cả <Images className="h-4 w-4" /></Link></div><div className="grid gap-6 md:grid-cols-3">{loading ? Array.from({ length: 3 }, (_, index) => <LoadingCard key={index} />) : featuredMoments.map((moment) => <Link key={moment.id} to="/moments" className="group overflow-hidden rounded-2xl bg-surface"><img src={moment.image_url ?? ''} alt={moment.title} className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-105" /><div className="p-5"><p className="font-label-md text-sm text-primary">{moment.category || 'Kỷ niệm gia đình'}</p><h3 className="mt-1 font-headline-md text-xl text-on-surface">{moment.title}</h3></div></Link>)}</div>{!loading && featuredMoments.length === 0 && <p className="rounded-2xl bg-surface p-6 font-body-md text-on-surface-variant">Album ảnh đang chờ những khoảnh khắc đầu tiên của gia đình.</p>}</div>
       </section>
 
-      {/* =========================================================
-          FAMILY TODAY
-      ========================================================= */}
-      <section className="py-section-gap px-margin-mobile md:px-margin-desktop bg-surface">
-        <div className="max-w-container-max mx-auto">
-          <div className="max-w-3xl mx-auto text-center mb-12">
-            <span className="font-label-md text-primary uppercase tracking-[0.15em]">
-              Nhà mình hôm nay
-            </span>
+      <section className="mx-auto max-w-4xl px-margin-mobile py-section-gap text-center md:px-margin-desktop"><Heart className="mx-auto h-10 w-10 fill-primary text-primary" /><h2 className="mt-5 font-headline-lg text-headline-lg text-secondary">Gửi một lời đến gia đình</h2><p className="mx-auto mt-4 max-w-2xl font-body-lg text-on-surface-variant">Có những điều đôi khi thật khó nói thành lời. Hãy để lại một lời nhắn để bà và gia đình mình cùng gìn giữ.</p><Link to="/guestbook" className="mt-7 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-label-md text-on-primary">Viết lời chúc <ArrowRight className="h-4 w-4" /></Link></section>
 
-            <h2 className="font-headline-lg text-headline-lg text-secondary mt-3 mb-5">
-              Vẫn là mái nhà ấy, chỉ là thời gian đã đi qua
-            </h2>
-
-            <p className="font-body-md text-on-surface-variant leading-relaxed">
-              Gia đình lớn lên cùng năm tháng. Mỗi thế hệ đi qua đều để lại những
-              câu chuyện, những kỷ niệm và những người thân yêu.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="bg-surface-container-low rounded-3xl p-8 text-center border border-outline/10">
-              <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-5">
-                <Users className="w-7 h-7" />
-              </div>
-
-              <p className="font-headline-md text-3xl text-secondary mb-2">
-                {members.length}
-              </p>
-
-              <p className="font-body-md text-on-surface-variant">
-                Thành viên đang được giới thiệu
-              </p>
-            </div>
-
-            <div className="bg-surface-container-low rounded-3xl p-8 text-center border border-outline/10">
-              <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-5">
-                <CalendarDays className="w-7 h-7" />
-              </div>
-
-              <p className="font-headline-md text-3xl text-secondary mb-2">
-                Nhiều thế hệ
-              </p>
-
-              <p className="font-body-md text-on-surface-variant">
-                Cùng chung một mái nhà
-              </p>
-            </div>
-
-            <div className="bg-surface-container-low rounded-3xl p-8 text-center border border-outline/10">
-              <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-5">
-                <Images className="w-7 h-7" />
-              </div>
-
-              <p className="font-headline-md text-3xl text-secondary mb-2">
-                {moments.length}
-              </p>
-
-              <p className="font-body-md text-on-surface-variant">
-                Khoảnh khắc đang được lưu giữ
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          FAMILY STORY
-      ========================================================= */}
-      <section className="py-section-gap px-margin-mobile md:px-margin-desktop bg-surface-container-low">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <span className="font-label-md text-primary uppercase tracking-[0.15em]">
-                Câu chuyện
-              </span>
-
-              <h2 className="font-headline-lg text-headline-lg text-secondary mt-3 mb-6">
-                Những năm tháng đã làm nên chúng ta
-              </h2>
-
-              <div className="w-16 h-1 bg-primary/30 rounded-full mb-6"></div>
-
-              <p className="font-body-md text-on-surface-variant leading-relaxed mb-5">
-                Một gia đình không chỉ được tạo nên bởi những người cùng chung
-                huyết thống, mà còn bởi những bữa cơm, những lần đoàn tụ, những
-                niềm vui và cả những thử thách cùng nhau vượt qua.
-              </p>
-
-              <p className="font-body-md text-on-surface-variant leading-relaxed mb-8">
-                Mỗi thế hệ đi qua đều để lại một câu chuyện. Và những câu chuyện
-                ấy xứng đáng được kể lại cho những người đến sau.
-              </p>
-
-              <Link
-                to="/story"
-                className="inline-flex items-center gap-2 text-primary font-label-md hover:gap-3 transition-all"
-              >
-                Đọc câu chuyện gia đình
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="relative">
-              <div className="absolute -inset-4 rounded-[2rem] bg-primary/10 rotate-2"></div>
-
-              <div className="relative rounded-[2rem] overflow-hidden shadow-xl">
-                {storyMoment?.image_url ? (
-                  <img
-                    src={storyMoment.image_url}
-                    alt={storyMoment.title}
-                    className="w-full h-[420px] object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-[420px] bg-surface-container-low flex items-center justify-center">
-                    <p className="font-body-md text-on-surface-variant">
-                      Chưa có hình ảnh
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          MOMENTS
-      ========================================================= */}
-      <section className="py-section-gap px-margin-mobile md:px-margin-desktop bg-surface">
-        <div className="max-w-container-max mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
-            <div>
-              <span className="font-label-md text-primary uppercase tracking-[0.15em]">
-                Ký ức
-              </span>
-
-              <h2 className="font-headline-lg text-headline-lg text-secondary mt-3">
-                Khoảnh khắc đáng nhớ
-              </h2>
-
-              <div className="w-16 h-1 bg-primary/30 rounded-full mt-4"></div>
-            </div>
-
-            <Link
-              to="/moments"
-              className="inline-flex items-center gap-2 text-primary font-label-md hover:gap-3 transition-all"
-            >
-              Xem tất cả
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            {loadingMoments ? (
-              <div className="col-span-12 text-center py-12">
-                <p className="font-body-md text-on-surface-variant">
-                  Đang tải khoảnh khắc...
-                </p>
-              </div>
-            ) : moments.length === 0 ? (
-              <div className="col-span-12 text-center py-12">
-                <p className="font-body-md text-on-surface-variant">
-                  Chưa có khoảnh khắc nào được lưu giữ.
-                </p>
-              </div>
-            ) : (
-              moments.slice(0, 5).map((moment, index) => {
-                const layoutClass =
-                  index === 0
-                    ? 'md:col-span-6 md:row-span-2 h-[420px]'
-                    : 'md:col-span-3 h-[200px]';
-            
-                return (
-                  <Link
-                    to="/moments"
-                    key={moment.id}
-                    className={`group relative rounded-2xl overflow-hidden ${layoutClass}`}
-                  >
-                    {moment.image_url ? (
-                      <img
-                        src={moment.image_url}
-                        alt={moment.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-surface-container-low flex items-center justify-center">
-                        <span className="font-body-md text-on-surface-variant">
-                          Chưa có ảnh
-                        </span>
-                      </div>
-                    )}
-            
-                    <div className="absolute inset-0 bg-gradient-to-t from-on-surface/75 via-transparent to-transparent" />
-            
-                    <div className="absolute left-5 right-5 bottom-5">
-                      <p className="text-on-primary font-label-md text-sm">
-                        {moment.title}
-                      </p>
-            
-                      {moment.category && (
-                        <p className="text-on-primary/70 text-xs mt-1">
-                          {moment.category}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          GUESTBOOK CTA
-      ========================================================= */}
-      <section className="px-margin-mobile md:px-margin-desktop py-20 bg-primary">
-        <div className="max-w-3xl mx-auto text-center text-on-primary">
-          <Heart className="w-10 h-10 fill-current mx-auto mb-5" />
-
-          <h2 className="font-headline-lg text-headline-lg mb-4">
-            Gửi một lời đến gia đình
-          </h2>
-
-          <p className="font-body-md text-on-primary/85 leading-relaxed max-w-xl mx-auto mb-8">
-            Có những điều đôi khi thật khó nói thành lời. Hãy để lại một lời
-            nhắn cho những người bạn yêu thương.
-          </p>
-
-          <Link
-            to="/guestbook"
-            className="inline-flex items-center gap-2 bg-on-primary text-primary px-7 py-3.5 rounded-full font-label-md hover:bg-on-primary-container transition-colors"
-          >
-            Viết Lưu Bút
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
-    </div>
+      {selectedMember && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-on-surface/50 p-4" role="dialog" aria-modal="true" aria-label="Thông tin thành viên"><div className="relative w-full max-w-md rounded-3xl bg-surface p-7 shadow-2xl"><button type="button" onClick={() => setSelectedMember(null)} className="absolute right-4 top-4 rounded-full p-2 text-on-surface-variant hover:bg-surface-container" aria-label="Đóng"><X className="h-5 w-5" /></button>{selectedMember.avatar_url && <img src={selectedMember.avatar_url} alt={selectedMember.full_name} className="mb-5 h-48 w-full rounded-2xl object-cover" />}<p className="font-label-md text-sm text-primary">MỘT MẢNH GHÉP CỦA GIA ĐÌNH</p><h2 className="mt-1 font-headline-md text-2xl text-on-surface">{selectedMember.full_name}</h2><p className="mt-3 font-body-md text-on-surface-variant">Sinh ngày {formatDate(selectedMember.birth_date)}</p><p className="mt-3 font-body-md leading-relaxed text-on-surface-variant">Mỗi người đều góp vào mái nhà này bằng tình yêu, sự hiện diện và những kỷ niệm rất riêng. Phần lưu bút cá nhân sẽ được gia đình bổ sung theo thời gian.</p></div></div>}
+    </main>
   );
 }
