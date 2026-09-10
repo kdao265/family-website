@@ -298,7 +298,7 @@ export default function FamilyTree() {
       DisplayMember[]
     >();
 
-    const memberMap = new Map(
+    const memberMap = new Map<string, DisplayMember>(
       members.map((member) => [
         member.id,
         member,

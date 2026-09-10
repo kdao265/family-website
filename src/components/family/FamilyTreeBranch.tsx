@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useRef, useState, useLayoutEffect } from 'react';
 import FamilyMemberCard from './FamilyMemberCard';
 
 interface Member {
@@ -14,7 +14,8 @@ interface Member {
 
 interface FamilyTreeBranchProps {
   parents: Member[];
-  children: Member[];
+  children?: any;
+  key?: React.Key;
   allMembers: Member[];
   childrenMap: Map<string, string[]>;
   spouseMap: Map<string, Member[]>;
@@ -29,306 +30,8 @@ interface FamilyTreeBranchProps {
 const CARD_WIDTH = 220;
 const SPOUSE_GAP = 24;
 const FAMILY_GAP = 48;
-
-const CONNECTOR_COLOR = 'bg-primary/60';
-const CONNECTOR_BORDER = 'border-primary/60';
-
-/*
- * Chiều rộng một family unit:
- *
- * [Một người]                = 220
- *
- * [Người] ♥ [Vợ/chồng]       = 220 + 24 + 220
- */
-function getFamilyWidth(hasSpouse: boolean) {
-  return hasSpouse
-    ? CARD_WIDTH * 2 + SPOUSE_GAP
-    : CARD_WIDTH;
-}
-
-/*
- * Điểm huyết thống của một family unit.
- *
- * Nếu:
- *
- *   [ Minh ] ♥ [ Thơm ]
- *
- * thì connector từ cha/mẹ phải đi vào:
- *
- *   [ Minh ]
- *      ↑
- *
- * chứ không phải tâm của cả cặp.
- */
-function getBloodAnchor() {
-  return CARD_WIDTH / 2;
-}
-
-/*
- * Điểm union của cả family unit.
- *
- * Nếu:
- *
- *   [ Minh ] ♥ [ Thơm ]
- *
- * thì đường xuống con phải đi từ:
- *
- *          │
- *   [ Minh ] ♥ [ Thơm ]
- *
- * tức tâm của cả family unit.
- */
-function getUnionAnchor(
-  hasSpouse: boolean
-) {
-  return hasSpouse
-    ? CARD_WIDTH + SPOUSE_GAP / 2
-    : CARD_WIDTH / 2;
-}
-
-interface ChildUnit {
-  child: Member;
-  spouse: Member | null;
-  familyMembers: Member[];
-  familyChildren: Member[];
-  renderedIds: Set<string>;
-  width: number;
-  bloodAnchor: number;
-  unionAnchor: number;
-}
-
-/*
- * ============================================================
- * CHILD FAMILY UNIT
- * ============================================================
- */
-
-interface ChildFamilyUnitProps {
-  unit: ChildUnit;
-  selectedMemberId: string | null;
-  onMemberClick: (memberId: string) => void;
-  collapsedFamilyIds: Set<string>;
-  onToggleCollapse: (memberIds: string[]) => void;
-  childrenMap: Map<string, string[]>;
-  spouseMap: Map<string, Member[]>;
-  allMembers: Member[];
-}
-
-function ChildFamilyUnit({
-  unit,
-  selectedMemberId,
-  onMemberClick,
-  collapsedFamilyIds,
-  onToggleCollapse,
-  childrenMap,
-  spouseMap,
-  allMembers,
-}: ChildFamilyUnitProps) {
-  const familyUnitId = unit.familyMembers
-    .map((member) => member.id)
-    .sort()
-    .join('|');
-
-  const isCollapsed =
-    collapsedFamilyIds.has(
-      familyUnitId
-    );
-
-  return (
-    <div
-      className="relative flex flex-col items-center shrink-0"
-      style={{
-        width: unit.width,
-      }}
-    >
-      {/*
-       * ========================================================
-       * DÒNG HUYẾT THỐNG ĐI VÀO NGƯỜI CON
-       *
-       * [ Dỏn ]
-       *    │
-       *    │
-       * [ Minh ] ♥ [ Thơm ]
-       *
-       * Chỉ nằm trên child card.
-       * ========================================================
-       */}
-
-      <div
-        className={`absolute top-0 w-[2px] h-6 ${CONNECTOR_COLOR}`}
-        style={{
-          left: unit.bloodAnchor,
-        }}
-      />
-
-      {/*
-       * ========================================================
-       * CHILD + SPOUSE
-       * ========================================================
-       */}
-
-      <div className="pt-6 flex items-center">
-        <FamilyMemberCard
-          member={unit.child}
-          isSelected={
-            selectedMemberId ===
-            unit.child.id
-          }
-          onClick={() =>
-            onMemberClick(
-              unit.child.id
-            )
-          }
-        />
-
-        {unit.spouse && (
-          <>
-            <div className="w-6 shrink-0 flex items-center justify-center text-primary text-xl font-semibold">
-              ♥
-            </div>
-
-            <FamilyMemberCard
-              member={unit.spouse}
-              isSelected={
-                selectedMemberId ===
-                unit.spouse.id
-              }
-              onClick={() =>
-                onMemberClick(
-                  unit.spouse!.id
-                )
-              }
-            />
-          </>
-        )}
-      </div>
-
-      {/*
-       * ========================================================
-       * TỪ CẶP VỢ CHỒNG → CON
-       *
-       * [ Minh ] ♥ [ Thơm ]
-       *          │
-       *          ●
-       *          │
-       *      ────┴────
-       *
-       * Collapse button nằm trên union.
-       * ========================================================
-       */}
-
-      {unit.familyChildren.length >
-        0 && (
-        <>
-          <div
-            className="relative"
-            style={{
-              width: unit.width,
-              height: 52,
-            }}
-          >
-            <div
-              className={`absolute top-0 w-[2px] h-6 ${CONNECTOR_COLOR}`}
-              style={{
-                left:
-                  unit.unionAnchor,
-              }}
-            />
-
-            <button
-              type="button"
-              onPointerDown={(
-                event
-              ) => {
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.stopPropagation();
-
-                onToggleCollapse(
-                  unit.familyMembers.map(
-                    (member) =>
-                      member.id
-                  )
-                );
-              }}
-              className="absolute top-6 w-8 h-8 -translate-x-1/2 rounded-full bg-surface border-2 border-primary/50 text-primary hover:bg-primary/10 active:scale-95 transition-all flex items-center justify-center text-lg font-semibold shadow-sm z-30 cursor-pointer"
-              style={{
-                left:
-                  unit.unionAnchor,
-              }}
-              aria-label={
-                isCollapsed
-                  ? 'Mở rộng nhánh gia đình'
-                  : 'Thu gọn nhánh gia đình'
-              }
-            >
-              {isCollapsed
-                ? '+'
-                : '−'}
-            </button>
-          </div>
-
-          {!isCollapsed && (
-            <>
-              {/*
-               * Dòng từ union xuống family branch
-               */}
-              <div
-                className={`w-[2px] h-6 ${CONNECTOR_COLOR}`}
-                style={{
-                  marginLeft:
-                    unit.unionAnchor -
-                    unit.width / 2,
-                }}
-              />
-
-              <FamilyTreeBranch
-                parents={
-                  unit.familyMembers
-                }
-                children={
-                  unit.familyChildren
-                }
-                allMembers={
-                  allMembers
-                }
-                childrenMap={
-                  childrenMap
-                }
-                spouseMap={
-                  spouseMap
-                }
-                selectedMemberId={
-                  selectedMemberId
-                }
-                onMemberClick={
-                  onMemberClick
-                }
-                renderedIds={
-                  unit.renderedIds
-                }
-                collapsedFamilyIds={
-                  collapsedFamilyIds
-                }
-                onToggleCollapse={
-                  onToggleCollapse
-                }
-                showParents={false}
-              />
-            </>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-/*
- * ============================================================
- * MAIN FAMILY TREE BRANCH
- * ============================================================
- */
+const CONNECTOR_HEIGHT = 68;
+const SPLIT_Y = 40;
 
 export default function FamilyTreeBranch({
   parents,
@@ -343,548 +46,364 @@ export default function FamilyTreeBranch({
   onToggleCollapse,
   showParents = true,
 }: FamilyTreeBranchProps) {
-  const memberMap = new Map(
-    allMembers.map((member) => [
-      member.id,
-      member,
-    ])
+  const memberMap = useMemo(
+    () => new Map(allMembers.map((member) => [member.id, member])),
+    [allMembers]
   );
 
-  /*
-   * ==========================================================
-   * FAMILY UNIT
-   * ==========================================================
-   */
+  const familyUnitId = useMemo(
+    () =>
+      parents
+        .map((p) => p.id)
+        .sort()
+        .join('|'),
+    [parents]
+  );
 
-  const familyUnitId = parents
-    .map((parent) => parent.id)
-    .sort()
-    .join('|');
+  const isCollapsed = collapsedFamilyIds.has(familyUnitId);
 
-  const isCollapsed =
-    collapsedFamilyIds.has(
-      familyUnitId
-    );
-
-  /*
-   * ==========================================================
-   * GET SPOUSE
-   * ==========================================================
-   */
-
-  function getAvailableSpouse(
-    member: Member
-  ) {
-    const spouses =
-      spouseMap.get(member.id) ?? [];
-
+  // Lấy spouse hợp lệ
+  const getAvailableSpouse = (member: Member) => {
+    const spouses = spouseMap.get(member.id) ?? [];
     return (
       spouses.find(
-        (spouse) =>
-          spouse.id !==
-            member.id &&
-          !renderedIds.has(
-            spouse.id
-          )
+        (spouse) => spouse.id !== member.id && !renderedIds.has(spouse.id)
       ) ?? null
     );
-  }
+  };
 
-  /*
-   * ==========================================================
-   * GET BIOLOGICAL CHILDREN
-   *
-   * Đây là phần quan trọng nhất.
-   *
-   * Nếu parents = [Dỏn]
-   *
-   * thì:
-   *
-   * childrenMap[Dỏn]
-   *
-   * chỉ chứa Minh + Xuân Hoà.
-   *
-   * Thơm không nằm trong đó nên không bao giờ
-   * trở thành child connector.
-   * ==========================================================
-   */
-
-  function getChildrenOfFamily(
-    familyParents: Member[]
-  ) {
-    const childIds =
-      new Set<string>();
-
-    /*
-     * Những người không thể xuất hiện
-     * như biological child ở level này.
-     */
-    const excludedIds =
-      new Set<string>();
+  // Lấy con ruột trực hệ
+  const getChildrenOfFamily = (familyParents: Member[]) => {
+    const childIds = new Set<string>();
+    const excludedIds = new Set<string>();
 
     for (const parent of familyParents) {
       excludedIds.add(parent.id);
-
-      const spouses =
-        spouseMap.get(
-          parent.id
-        ) ?? [];
-
-      /*
-       * spouse không phải biological child.
-       */
+      const spouses = spouseMap.get(parent.id) ?? [];
       for (const spouse of spouses) {
-        excludedIds.add(
-          spouse.id
-        );
+        excludedIds.add(spouse.id);
       }
-
-      const ids =
-        childrenMap.get(
-          parent.id
-        ) ?? [];
-
+      const ids = childrenMap.get(parent.id) ?? [];
       for (const childId of ids) {
-        childIds.add(
-          childId
-        );
+        childIds.add(childId);
       }
     }
 
     return Array.from(childIds)
-      .filter(
-        (id) =>
-          !excludedIds.has(id)
-      )
-      .map((id) =>
-        memberMap.get(id)
-      )
-      .filter(
-        (
-          member
-        ): member is Member =>
-          Boolean(member)
-      )
-      .filter(
-        (member) =>
-          !renderedIds.has(
-            member.id
-          )
-      );
+      .filter((id) => !excludedIds.has(id))
+      .map((id) => memberMap.get(id))
+      .filter((member): member is Member => Boolean(member))
+      .filter((member) => !renderedIds.has(member.id));
+  };
+
+  const visibleChildren = useMemo(() => {
+    if (children && children.length > 0) return children;
+    return getChildrenOfFamily(parents);
+  }, [children, parents]);
+
+  const hasSpouse = parents.length > 1;
+  const parentCardsWidth = hasSpouse ? CARD_WIDTH * 2 + SPOUSE_GAP : CARD_WIDTH;
+
+  const childUnits = useMemo(() => {
+    return visibleChildren.map((child) => {
+      const spouse = getAvailableSpouse(child);
+      const familyMembers = spouse ? [child, spouse] : [child];
+      const familyChildren = getChildrenOfFamily(familyMembers);
+
+      const nextRenderedIds = new Set(renderedIds);
+      nextRenderedIds.add(child.id);
+      if (spouse) nextRenderedIds.add(spouse.id);
+
+      return {
+        child,
+        spouse,
+        familyMembers,
+        familyChildren,
+        renderedIds: nextRenderedIds,
+        cardWidth: spouse ? CARD_WIDTH * 2 + SPOUSE_GAP : CARD_WIDTH,
+      };
+    });
+  }, [visibleChildren, renderedIds, spouseMap, childrenMap]);
+
+  if (!showParents && childUnits.length === 0) {
+    return null;
   }
 
-  /*
-   * ==========================================================
-   * CHILDREN CỦA FAMILY UNIT HIỆN TẠI
-   * ==========================================================
-   */
-
-  const visibleChildren =
-    getChildrenOfFamily(
-      parents
-    );
-
-  /*
-   * ==========================================================
-   * TẠO CÁC CHILD FAMILY UNIT
-   *
-   * Ví dụ:
-   *
-   * Dỏn
-   *
-   * children:
-   *   Minh
-   *   Xuân Hoà
-   *
-   * unit 1:
-   *   Minh ♥ Thơm
-   *
-   * unit 2:
-   *   Xuân Hoà
-   * ==========================================================
-   */
-
-  const childUnits: ChildUnit[] =
-    visibleChildren.map(
-      (child) => {
-        const spouse =
-          getAvailableSpouse(
-            child
-          );
-
-        const familyMembers =
-          spouse
-            ? [child, spouse]
-            : [child];
-
-        const familyChildren =
-          getChildrenOfFamily(
-            familyMembers
-          );
-
-        const nextRenderedIds =
-          new Set(
-            renderedIds
-          );
-
-        nextRenderedIds.add(
-          child.id
-        );
-
-        if (spouse) {
-          nextRenderedIds.add(
-            spouse.id
-          );
-        }
-
-        return {
-          child,
-          spouse,
-          familyMembers,
-          familyChildren,
-          renderedIds:
-            nextRenderedIds,
-          width:
-            getFamilyWidth(
-              Boolean(spouse)
-            ),
-          bloodAnchor:
-            getBloodAnchor(),
-          unionAnchor:
-            getUnionAnchor(
-              Boolean(spouse)
-            ),
-        };
-      }
-    );
-
-  /*
-   * ==========================================================
-   * ROOT FAMILY DIMENSIONS
-   * ==========================================================
-   */
-
-  const rootHasSpouse =
-    parents.length > 1;
-
-  const rootWidth =
-    getFamilyWidth(
-      rootHasSpouse
-    );
-
-  const rootUnionAnchor =
-    getUnionAnchor(
-      rootHasSpouse
-    );
-
-  /*
-   * ==========================================================
-   * RENDER PARENTS
-   * ==========================================================
-   */
-
-  function renderParents() {
-    if (!showParents) {
-      return null;
-    }
-
-    return (
-      <div
-        className="flex items-center justify-center"
-        style={{
-          width: rootWidth,
-        }}
-      >
-        {parents.map(
-          (parent, index) => (
-            <React.Fragment
-              key={parent.id}
-            >
+  return (
+    <div className="flex flex-col items-center select-none">
+      {/* 1. KHỐI THẺ CHA MẸ */}
+      {showParents && (
+        <div
+          className="flex items-center justify-center relative z-20"
+          style={{ width: parentCardsWidth }}
+        >
+          {parents.map((parent, index) => (
+            <React.Fragment key={parent.id}>
               <FamilyMemberCard
                 member={parent}
-                isSelected={
-                  selectedMemberId ===
-                  parent.id
-                }
-                onClick={() =>
-                  onMemberClick(
-                    parent.id
-                  )
-                }
+                isSelected={selectedMemberId === parent.id}
+                onClick={() => onMemberClick(parent.id)}
               />
-
-              {index <
-                parents.length -
-                  1 && (
-                <div className="w-6 shrink-0 flex items-center justify-center text-primary text-xl font-semibold">
+              {index < parents.length - 1 && (
+                <div
+                  className="shrink-0 flex items-center justify-center text-primary text-xl font-bold"
+                  style={{ width: SPOUSE_GAP }}
+                  title="Hôn phối"
+                >
                   ♥
                 </div>
               )}
             </React.Fragment>
-          )
-        )}
-      </div>
-    );
-  }
-
-  /*
-   * ==========================================================
-   * RENDER CHILD ROW
-   *
-   * Cấu trúc:
-   *
-   *                 parent
-   *                   │
-   *          ┌────────┴────────┐
-   *          │                 │
-   *        [Minh]          [Xuân Hoà]
-   *
-   * Minh là child anchor.
-   *
-   * Thơm đứng cạnh Minh nhưng không có
-   * đường dọc riêng từ parent.
-   * ==========================================================
-   */
-
-  function renderChildren() {
-    if (
-      childUnits.length === 0 ||
-      isCollapsed
-    ) {
-      return null;
-    }
-
-    /*
-     * Tổng width của toàn bộ row.
-     */
-    const totalWidth =
-      childUnits.reduce(
-        (sum, unit) =>
-          sum + unit.width,
-        0
-      ) +
-      Math.max(
-        0,
-        childUnits.length - 1
-      ) *
-        FAMILY_GAP;
-
-    /*
-     * Anchor đầu và cuối.
-     *
-     * Chú ý:
-     * anchor = tâm CARD của biological child,
-     * không phải tâm family unit.
-     *
-     * Đây là điều làm:
-     *
-     * Dỏn → Minh
-     *
-     * thay vì:
-     *
-     * Dỏn → giữa Minh + Thơm.
-     */
-    const firstAnchor =
-      childUnits[0].bloodAnchor;
-
-    const lastUnitStart =
-      childUnits
-        .slice(0, -1)
-        .reduce(
-          (sum, unit) =>
-            sum +
-            unit.width +
-            FAMILY_GAP,
-          0
-        );
-
-    const lastAnchor =
-      lastUnitStart +
-      childUnits[
-        childUnits.length - 1
-      ].bloodAnchor;
-
-    /*
-     * Tâm của bloodline.
-     */
-    const bloodlineCenter =
-      (firstAnchor +
-        lastAnchor) /
-      2;
-
-    /*
-     * Tâm union của parent family.
-     */
-    const parentUnionCenter =
-      rootUnionAnchor;
-
-    /*
-     * Căn cả row sao cho:
-     *
-     * bloodline center
-     * =
-     * parent union center
-     */
-    const rowShift =
-      parentUnionCenter -
-      bloodlineCenter;
-
-    return (
-      <div className="flex flex-col items-center">
-        {/* =====================================================
-            PARENT → BLOODLINE
-           ===================================================== */}
-
-        <div
-          className="relative"
-          style={{
-            width: totalWidth,
-            height: 42,
-            transform:
-              `translateX(${rowShift}px)`,
-          }}
-        >
-          {/* Dọc từ parent xuống bloodline */}
-          <div
-            className={`absolute top-0 w-[2px] h-8 ${CONNECTOR_COLOR}`}
-            style={{
-              left:
-                bloodlineCenter,
-            }}
-          />
-
-          {/* Đường ngang biological */}
-          {childUnits.length > 1 && (
-            <div
-              className={`absolute top-8 h-[2px] ${CONNECTOR_COLOR}`}
-              style={{
-                left:
-                  firstAnchor,
-                width:
-                  lastAnchor -
-                  firstAnchor,
-              }}
-            />
-          )}
+          ))}
         </div>
+      )}
 
-        {/* =====================================================
-            CHILD FAMILY UNITS
-           ===================================================== */}
-
-        <div
-          className="flex items-start"
-          style={{
-            width: totalWidth,
-            transform:
-              `translateX(${rowShift}px)`,
-          }}
-        >
-          {childUnits.map(
-            (unit) => (
-              <ChildFamilyUnit
-                key={
-                  unit.child.id
-                }
-                unit={unit}
-                selectedMemberId={
-                  selectedMemberId
-                }
-                onMemberClick={
-                  onMemberClick
-                }
-                collapsedFamilyIds={
-                  collapsedFamilyIds
-                }
-                onToggleCollapse={
-                  onToggleCollapse
-                }
-                childrenMap={
-                  childrenMap
-                }
-                spouseMap={
-                  spouseMap
-                }
-                allMembers={
-                  allMembers
-                }
-              />
-            )
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  /*
-   * ==========================================================
-   * ROOT RENDER
-   * ==========================================================
-   */
-
-  return (
-    <div className="flex flex-col items-center">
-      {renderParents()}
-
-      {visibleChildren.length >
-        0 && (
+      {/* 2. KHỐI ĐƯỜNG NỐI VÀ CON CÁI */}
+      {childUnits.length > 0 && (
         <>
-          {/* Collapse root family */}
-          {showParents && (
+          {/* Nút thu gọn / mở rộng khi đang collapsed */}
+          {isCollapsed ? (
             <div
-              className="relative"
-              style={{
-                width:
-                  rootWidth,
-                height: 46,
-              }}
+              className="relative flex flex-col items-center"
+              style={{ width: parentCardsWidth, height: 36 }}
             >
-              <div
-                className={`absolute top-0 w-[2px] h-5 ${CONNECTOR_COLOR}`}
-                style={{
-                  left:
-                    rootUnionAnchor,
-                }}
-              />
-
+              <div className="w-[2px] h-3 bg-primary/60" />
               <button
                 type="button"
-                onPointerDown={(
-                  event
-                ) => {
-                  event.stopPropagation();
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCollapse(parents.map((p) => p.id));
                 }}
-                onClick={(event) => {
-                  event.stopPropagation();
-
-                  onToggleCollapse(
-                    parents.map(
-                      (parent) =>
-                        parent.id
-                    )
-                  );
-                }}
-                className="absolute top-5 w-8 h-8 -translate-x-1/2 rounded-full bg-surface border-2 border-primary/50 text-primary hover:bg-primary/10 active:scale-95 transition-all flex items-center justify-center text-lg font-semibold shadow-sm z-30 cursor-pointer"
-                style={{
-                  left:
-                    rootUnionAnchor,
-                }}
-                aria-label={
-                  isCollapsed
-                    ? 'Mở rộng nhánh gia đình'
-                    : 'Thu gọn nhánh gia đình'
-                }
+                className="w-6 h-6 rounded-full bg-surface-container-lowest border-2 border-primary/70 text-primary hover:bg-primary hover:text-on-primary transition-all flex items-center justify-center text-xs font-bold shadow-sm z-30 cursor-pointer"
+                aria-label="Mở rộng nhánh con"
+                title="Mở rộng"
               >
-                {isCollapsed
-                  ? '+'
-                  : '−'}
+                +
               </button>
             </div>
+          ) : (
+            <ChildrenWithConnectors
+              parents={parents}
+              childUnits={childUnits}
+              allMembers={allMembers}
+              childrenMap={childrenMap}
+              spouseMap={spouseMap}
+              selectedMemberId={selectedMemberId}
+              onMemberClick={onMemberClick}
+              collapsedFamilyIds={collapsedFamilyIds}
+              onToggleCollapse={onToggleCollapse}
+            />
           )}
-
-          {renderChildren()}
         </>
       )}
+    </div>
+  );
+}
+
+interface ChildrenWithConnectorsProps {
+  parents: Member[];
+  childUnits: Array<{
+    child: Member;
+    spouse: Member | null;
+    familyMembers: Member[];
+    familyChildren: Member[];
+    renderedIds: Set<string>;
+    cardWidth: number;
+  }>;
+  allMembers: Member[];
+  childrenMap: Map<string, string[]>;
+  spouseMap: Map<string, Member[]>;
+  selectedMemberId: string | null;
+  onMemberClick: (memberId: string) => void;
+  collapsedFamilyIds: Set<string>;
+  onToggleCollapse: (memberIds: string[]) => void;
+}
+
+function ChildrenWithConnectors({
+  parents,
+  childUnits,
+  allMembers,
+  childrenMap,
+  spouseMap,
+  selectedMemberId,
+  onMemberClick,
+  collapsedFamilyIds,
+  onToggleCollapse,
+}: ChildrenWithConnectorsProps) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [lineCoords, setLineCoords] = useState<{
+    parentX: number;
+    childAnchors: number[];
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+
+    const measure = () => {
+      const childNodes = row.children;
+      if (childNodes.length === 0) return;
+
+      const anchors = [];
+      for (let i = 0; i < childNodes.length; i++) {
+        const node = childNodes[i];
+        // Con ruột luôn ở thẻ đầu tiên của khối (tâm thẻ con ruột = node.offsetLeft + 110)
+        anchors.push(node.offsetLeft + CARD_WIDTH / 2);
+      }
+
+      // Trục của cha mẹ nằm chính giữa hàng con vì flex flex-col items-center căn giữa
+      const pX = row.offsetWidth / 2;
+
+      setLineCoords({
+        parentX: pX,
+        childAnchors: anchors,
+      });
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    for (let i = 0; i < row.children.length; i++) {
+      observer.observe(row.children[i]);
+    }
+
+    return () => observer.disconnect();
+  }, [childUnits.length]);
+
+  const pX = lineCoords?.parentX ?? (rowRef.current ? rowRef.current.offsetWidth / 2 : 0);
+  const anchors = lineCoords?.childAnchors ?? [];
+  const firstX = anchors[0] ?? pX;
+  const lastX = anchors[anchors.length - 1] ?? pX;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      {/* Vùng nối SVG có chiều cao CONNECTOR_HEIGHT */}
+      <div
+        className="relative w-full pointer-events-none z-10"
+        style={{ height: CONNECTOR_HEIGHT }}
+      >
+        <svg
+          className="w-full h-full overflow-visible"
+          style={{ position: 'absolute', top: 0, left: 0 }}
+        >
+          {/* Đường từ cha mẹ xuống nút toggle và thanh ngang */}
+          <line
+            x1={pX}
+            y1={0}
+            x2={pX}
+            y2={anchors.length > 1 ? SPLIT_Y : CONNECTOR_HEIGHT}
+            stroke="#A84A3A"
+            strokeOpacity={0.65}
+            strokeWidth={2}
+          />
+
+          {/* Thanh ngang nối từ con đầu đến con cuối */}
+          {anchors.length > 1 && (
+            <line
+              x1={firstX}
+              y1={SPLIT_Y}
+              x2={lastX}
+              y2={SPLIT_Y}
+              stroke="#A84A3A"
+              strokeOpacity={0.65}
+              strokeWidth={2}
+            />
+          )}
+
+          {/* Đường thả dọc từ thanh ngang xuống từng con */}
+          {anchors.length > 1 &&
+            anchors.map((cX, idx) => (
+              <line
+                key={idx}
+                x1={cX}
+                y1={SPLIT_Y}
+                x2={cX}
+                y2={CONNECTOR_HEIGHT}
+                stroke="#A84A3A"
+                strokeOpacity={0.65}
+                strokeWidth={2}
+              />
+            ))}
+        </svg>
+
+        {/* Nút thu gọn nằm trên đường dọc */}
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCollapse(parents.map((p) => p.id));
+          }}
+          className="absolute pointer-events-auto -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-surface-container-lowest border-2 border-primary/70 text-primary hover:bg-primary hover:text-on-primary transition-all flex items-center justify-center text-xs font-bold shadow-sm z-30 cursor-pointer"
+          style={{
+            left: pX,
+            top: 18,
+          }}
+          aria-label="Thu gọn nhánh con"
+          title="Thu gọn"
+        >
+          −
+        </button>
+      </div>
+
+      {/* HÀNG CÁC THÀNH VIÊN CON */}
+      <div
+        ref={rowRef}
+        className="flex items-start relative z-20"
+        style={{ gap: FAMILY_GAP + "px" }}
+      >
+        {childUnits.map((unit) => (
+          <div key={unit.child.id} className="flex flex-col items-center shrink-0">
+            {/* Thẻ con (+ vợ/chồng) */}
+            <div
+              className="flex items-center justify-center"
+              style={{ width: unit.cardWidth }}
+            >
+              <FamilyMemberCard
+                member={unit.child}
+                isSelected={selectedMemberId === unit.child.id}
+                onClick={() => onMemberClick(unit.child.id)}
+              />
+
+              {unit.spouse && (
+                <>
+                  <div
+                    className="shrink-0 flex items-center justify-center text-primary text-xl font-bold"
+                    style={{ width: SPOUSE_GAP }}
+                    title="Hôn phối"
+                  >
+                    ♥
+                  </div>
+                  <FamilyMemberCard
+                    member={unit.spouse}
+                    isSelected={selectedMemberId === unit.spouse.id}
+                    onClick={() => onMemberClick(unit.spouse.id)}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Đệ quy con của con này */}
+            {unit.familyChildren.length > 0 && (
+              <FamilyTreeBranch
+                parents={unit.familyMembers}
+                children={unit.familyChildren}
+                allMembers={allMembers}
+                childrenMap={childrenMap}
+                spouseMap={spouseMap}
+                selectedMemberId={selectedMemberId}
+                onMemberClick={onMemberClick}
+                renderedIds={unit.renderedIds}
+                collapsedFamilyIds={collapsedFamilyIds}
+                onToggleCollapse={onToggleCollapse}
+                showParents={false}
+              />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

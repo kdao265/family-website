@@ -1,3 +1,4 @@
+import React from 'react';
 import { Plus, X, Save, Upload, Image as ImageIcon } from 'lucide-react';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
