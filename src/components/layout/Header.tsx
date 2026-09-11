@@ -5,7 +5,7 @@ import { Link, useLocation } from 'react-router-dom';
 const navItems = [
   { path: '/', label: 'Trang Chủ' },
   { path: '/family-tree', label: 'Gia Phả' },
-  { path: '/story', label: 'Câu Chuyện' },
+  // { path: '/story', label: 'Câu Chuyện' },
   { path: '/moments', label: 'Khoảnh Khắc' },
   { path: '/guestbook', label: 'Lưu Bút' },
 ];
