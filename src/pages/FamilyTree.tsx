@@ -799,10 +799,7 @@ export default function FamilyTree() {
           <div className="w-16 h-1 bg-primary/30 mx-auto rounded-full mb-6" />
 
           <p className="font-body-lg text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
-            Mỗi thế hệ là một phần
-            của câu chuyện. Hãy cùng
-            tìm về những người đã tạo nên
-            mái nhà này.
+            Qua từng thế hệ, những người thân yêu đã cùng nhau viết nên câu chuyện mang tên gia đình.
           </p>
         </div>
       </section>
