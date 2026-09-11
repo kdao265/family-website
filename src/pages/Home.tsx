@@ -88,13 +88,13 @@ export default function Home() {
         <div className="mx-auto grid max-w-container-max gap-10 lg:grid-cols-[1.25fr_.75fr] lg:items-center">
           <div>
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-on-primary/30 bg-on-primary/10 px-4 py-2 font-label-md text-sm">
-              <Heart className="h-4 w-4 fill-current" /> Mừng sinh nhật bà Đào Thị Dỏn
+              <Heart className="h-4 w-4 fill-current" /> Các con, các cháu chúc mừng sinh nhật bà
             </p>
             <h1 className="max-w-3xl font-display-lg text-display-lg leading-tight">
               Một gia đình. Nhiều thế hệ. Một mái nhà.
             </h1>
             <p className="mt-6 max-w-2xl font-body-lg text-body-lg leading-relaxed text-on-primary/85">
-              Nơi con cháu cùng lưu giữ những người thân yêu, những điều bình dị và những kỷ niệm muốn kể lại cho mai sau.
+              Nơi những câu chuyện của gia đình được gìn giữ, để yêu thương hôm nay trở thành câu chuyện cho thế hệ sau này.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
@@ -115,7 +115,7 @@ export default function Home() {
             <p className="font-label-md text-sm tracking-wide text-on-primary/75">22 THÁNG 09</p>
             <h2 className="mt-2 font-headline-md text-headline-md">Một lời tri ân gửi tới bà</h2>
             <p className="mt-4 font-body-md leading-relaxed text-on-primary/85">
-              Cảm ơn bà vì tình yêu, sự tần tảo và những điều bà đã vun đắp để chúng con có một mái nhà ấm áp để trở về.
+              Cảm ơn bà vì tình yêu, sự tần tảo và những điều bà đã vun đắp, cho chúng con có một mái nhà ấm áp để trở về.
             </p>
             <Link
               to="/guestbook"
@@ -133,7 +133,7 @@ export default function Home() {
           <div>
             <p className="font-label-md text-sm text-primary uppercase tracking-wider">Những người thân yêu</p>
             <h2 className="mt-2 font-headline-lg text-headline-lg text-secondary">
-              Mỗi người là một mảnh ghép
+              Mỗi thành viên là một mảnh ghép
             </h2>
           </div>
           <Link
@@ -275,7 +275,7 @@ export default function Home() {
           Gửi một lời đến gia đình
         </h2>
         <p className="mx-auto mt-4 max-w-2xl font-body-lg text-on-surface-variant">
-          Có những điều đôi khi thật khó nói thành lời. Hãy để lại một lời nhắn để bà và gia đình mình cùng gìn giữ.
+          Mỗi lời nhắn là một chút yêu thương được gửi lại.
         </p>
         <Link
           to="/guestbook"
@@ -327,7 +327,7 @@ export default function Home() {
 
             <p className="mt-2 flex items-center gap-1.5 font-body-md text-sm text-on-surface-variant">
               <CalendarDays className="h-4 w-4 text-primary" />
-              Sinh ngày {formatDate(selectedMember.birth_date)}
+              {formatDate(selectedMember.birth_date)}
             </p>
 
             {selectedMember.short_bio ? (
@@ -336,7 +336,7 @@ export default function Home() {
               </blockquote>
             ) : (
               <p className="mt-4 font-body-md text-sm leading-relaxed text-on-surface-variant">
-                Mỗi người đều góp vào mái nhà này bằng tình yêu, sự hiện diện và những kỷ niệm rất riêng.
+                Mỗi thành viên đều góp vào mái nhà này tình yêu, sự hiện diện và những kỷ niệm đáng nhớ.
               </p>
             )}
 
