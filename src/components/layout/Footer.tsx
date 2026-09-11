@@ -17,15 +17,15 @@ export default function Footer() {
             </div>
 
             <p className="font-body-md text-on-secondary-container/80 max-w-md text-sm leading-relaxed">
-              Một nơi nhỏ để gia đình lưu giữ những người mình yêu thương,
-              những câu chuyện đã đi qua và những khoảnh khắc muốn nhớ mãi.
+              Một góc nhỏ để gia đình lưu giữ những người thân yêu,
+              những câu chuyện thân quen và những khoảnh khắc ta luôn muốn nhớ về.
             </p>
           </div>
 
           {/* Slogan */}
           <div className="text-center md:text-right">
             <p className="font-headline-md text-lg mb-2">
-              Một gia đình. Nhiều thế hệ. Một mái nhà.
+              Đại gia đình. Nhiều thế hệ. Một mái nhà.
             </p>
             <p className="font-body-md text-on-secondary-container/60 text-sm">
               Được xây dựng bằng trọn vẹn tình yêu và lòng biết ơn.
@@ -35,7 +35,7 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="border-t border-on-secondary-container/10 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-on-secondary-container/60">
-          <p>© 2026 Love Family. Dành tặng Bà Đào Thị Dỏn & Đại gia đình.</p>
+          <p>© Love Family 2026. Chúc mừng sinh nhật bà của chúng con.</p>
 
           {/* Subtle admin link */}
           <Link
